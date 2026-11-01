@@ -25,8 +25,11 @@ mongoose.connect(process.env.MONGODB_URI)
     });
 
 // Home route
+// Home route
+const path = require("path");
+
 app.get("/", (req, res) => {
-    res.send("Campus Maintenance Complaint Tracker API is Running!");
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 module.exports = app;
