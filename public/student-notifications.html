@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="student-notifications">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div><div class="page-title">Notifications</div></div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-ghost btn-sm" onclick="markAllRead()" id="btn-mark-all">Mark All Read</button>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">Sign Out</button>
+          <a href="/student-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+      <main class="page-content">
+        <div class="card" id="notif-card">
+          <div class="card-header">
+            <div class="card-title">All Notifications</div>
+            <span id="unread-count" class="badge badge-assigned"></span>
+          </div>
+          <div id="notif-list">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    if (user) {
+      initSidebar('student', 'student-notifications');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('btn-mark-all').innerHTML = `${icon('check-circle', 14)} <span>Mark All Read</span>`;
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+
+      loadNotifications();
+      setupDataSync(loadNotifications, 4000);
+    }
+
+    async function loadNotifications() {
+      const list = document.getElementById('notif-list');
+      try {
+        const notifs = await apiGet('/notifications/mine') || [];
+        const unread = notifs.filter(n => !n.isRead).length;
+        const countEl = document.getElementById('unread-count');
+        if (unread) {
+          countEl.textContent = `${unread} unread`;
+          countEl.style.display = 'inline';
+        } else {
+          countEl.style.display = 'none';
+        }
+
+        if (!notifs.length) {
+          list.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('bell', 36)}</div><h3>No notifications</h3><p>You're all caught up!</p></div>`;
+          return;
+        }
+
+        const iconKeyMap = {
+          complaint_submitted: 'clipboard',
+          complaint_assigned: 'wrench',
+          status_update: 'refresh',
+          complaint_resolved: 'check-circle',
+          feedback_received: 'star'
+        };
+
+        list.innerHTML = notifs.map(n => `
+          <div class="notif-item ${n.isRead ? '' : 'unread'}" id="notif-${n._id}" onclick="markRead('${n._id}', '${n.relatedComplaint || ''}')">
+            <div class="notif-icon info">${icon(iconKeyMap[n.type] || 'bell', 18)}</div>
+            <div class="notif-content">
+              <div class="notif-msg">${n.message}</div>
+              <div class="notif-time">${timeAgo(n.createdAt)}</div>
+            </div>
+            ${!n.isRead ? '<div class="notif-dot-mark"></div>' : ''}
+          </div>`).join('');
+      } catch (err) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Failed to load</h3></div>`;
+      }
+    }
+
+    async function markRead(id, relatedId) {
+      try {
+        await apiPatch(`/notifications/${id}/read`, {});
+        const el = document.getElementById(`notif-${id}`);
+        if (el) {
+          el.classList.remove('unread');
+          el.querySelector('.notif-dot-mark')?.remove();
+        }
+        if (relatedId) window.location.href = `/student-complaint-detail.html?id=${relatedId}`;
+      } catch { /* ignore */ }
+    }
+
+    async function markAllRead() {
+      try {
+        await apiPatch('/notifications/read-all', {});
+        showToast('success', 'All notifications marked as read');
+        loadNotifications();
+      } catch (err) {
+        showToast('error', 'Failed', err.message);
+      }
+    }
+  </script>
+</body>
+</html>

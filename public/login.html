@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Sign In — Campus Maintenance Management System</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .auth-page {
+      padding: 30px 16px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      width: 100%;
+      max-width: 580px;
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+    }
+    .login-header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+      color: white;
+      padding: 28px 32px 24px 32px;
+      text-align: center;
+    }
+    .login-header-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    .login-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+    .login-header p {
+      font-size: 13px;
+      color: var(--primary-100);
+      margin: 0;
+    }
+    /* Role Selector Tabs */
+    .role-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 6px;
+      gap: 6px;
+    }
+    .role-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: center;
+      gap: 6px;
+    }
+    .role-tab:hover {
+      background: white;
+      color: var(--primary-700);
+    }
+    .role-tab.active {
+      background: white;
+      color: var(--primary-700);
+      border-color: var(--primary-200);
+      box-shadow: var(--shadow-sm);
+    }
+    .role-tab .tab-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--gray-100);
+      color: var(--gray-600);
+      transition: all var(--transition);
+    }
+    .role-tab.active .tab-icon {
+      background: var(--primary-50);
+      color: var(--primary-600);
+    }
+    /* Form Panels */
+    .login-body {
+      padding: 28px 32px;
+    }
+    .role-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      background: var(--primary-50);
+      color: var(--primary-700);
+      margin-bottom: 16px;
+    }
+    .demo-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--gray-600);
+      margin-bottom: 18px;
+    }
+    .demo-badge span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    /* Sub-tabs for Student */
+    .student-subtabs {
+      display: flex;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+    .subtab-btn {
+      background: none;
+      border: none;
+      padding: 8px 4px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-500);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+    .subtab-btn.active {
+      color: var(--primary-700);
+      border-bottom-color: var(--primary-700);
+    }
+    .session-notice {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      margin-bottom: 18px;
+      font-size: 12.5px;
+      color: #1e40af;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="login-container">
+    <!-- Header -->
+    <div class="login-header">
+      <div class="login-header-icon" id="header-logo-icon"></div>
+      <h1>Campus Maintenance Management</h1>
+      <p>Secure role-based portal for campus maintenance &amp; facility tracking</p>
+    </div>
+
+    <!-- Active Session Banner (if tab already logged in) -->
+    <div id="active-session-banner" style="display:none; padding:12px 24px 0 24px;">
+      <div class="session-notice">
+        <div>
+          Current session: <strong id="session-user-name">User</strong> (<span id="session-user-role">role</span>)
+        </div>
+        <div>
+          <a href="#" id="goto-dashboard-btn" class="btn btn-primary btn-sm" style="margin-right:6px;">Go to Dashboard</a>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 Role Options -->
+    <div class="role-selector" role="tablist">
+      <button class="role-tab active" id="tab-admin" onclick="switchRole('admin')">
+        <span class="tab-icon" id="icon-admin-tab"></span>
+        <span>Admin Login</span>
+      </button>
+      <button class="role-tab" id="tab-staff" onclick="switchRole('staff')">
+        <span class="tab-icon" id="icon-staff-tab"></span>
+        <span>Staff Login</span>
+      </button>
+      <button class="role-tab" id="tab-student" onclick="switchRole('student')">
+        <span class="tab-icon" id="icon-student-tab"></span>
+        <span>Student Login</span>
+      </button>
+    </div>
+
+    <!-- Login Body -->
+    <div class="login-body">
+      <div id="alert-box" class="alert alert-error" style="display:none;">
+        <span class="alert-icon" id="alert-icon"></span>
+        <span id="alert-msg"></span>
+      </div>
+
+      <!-- 1. ADMIN FORM -->
+      <div id="panel-admin" class="role-panel">
+        <div class="role-badge-pill">
+          <span id="admin-badge-icon"></span> Administrator Console
+        </div>
+        <div class="demo-badge">
+          <span><span id="admin-info-icon"></span> Demo credentials auto-loaded</span>
+          <span style="font-family:monospace;font-size:11px;color:var(--gray-500);">admin@college.edu</span>
+        </div>
+
+        <form id="admin-login-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="admin-email">Admin Email Address <span class="required">*</span></label>
+            <div class="input-group">
+              <span class="input-icon" id="admin-mail-icon"></span>
+              <input id="admin-email" type="email" class="form-control" value="admin@college.edu" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="admin-password">Password <span class="required">*</span></label>
+            <div class="input-group">
+              <span class="input-icon" id="admin-lock-icon"></span>
+              <input id="admin-password" type="password" class="form-control" value="AdminPassword123!" required autocomplete="current-password">
+              <button type="button" class="input-toggle" id="toggle-admin-pw" aria-label="Toggle password visibility"></button>
+            </div>
+          </div>
+
+          <button id="admin-login-btn" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:12px;">
+            Sign In as Administrator
+          </button>
+        </form>
+      </div>
+
+      <!-- 2. STAFF FORM -->
+      <div id="panel-staff" class="role-panel" style="display:none;">
+        <div class="role-badge-pill" style="background:#ecfdf5;color:#065f46;">
+          <span id="staff-badge-icon"></span> Maintenance Personnel Portal
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="staff-account-select">Select Demo Staff Account</label>
+          <select id="staff-account-select" class="form-control">
+            <option value="ramesh.electrical@college.edu" selected>Ramesh Sharma — Electrical Maintenance</option>
+            <option value="suresh.plumbing@college.edu">Suresh Kumar — Plumbing Maintenance</option>
+            <option value="anita.hostel@college.edu">Anita Verma — Hostel Maintenance</option>
+            <option value="custom">Enter other staff email…</option>
+          </select>
+        </div>
+
+        <form id="staff-login-form" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="staff-email">Work Email <span class="required">*</span></label>
+            <div class="input-group">
+              <span class="input-icon" id="staff-mail-icon"></span>
+              <input id="staff-email" type="email" class="form-control" value="ramesh.electrical@college.edu" required autocomplete="email">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="staff-password">Password <span class="required">*</span></label>
+            <div class="input-group">
+              <span class="input-icon" id="staff-lock-icon"></span>
+              <input id="staff-password" type="password" class="form-control" value="StaffPassword123!" required autocomplete="current-password">
+              <button type="button" class="input-toggle" id="toggle-staff-pw" aria-label="Toggle password visibility"></button>
+            </div>
+          </div>
+
+          <button id="staff-login-btn" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:12px;background:#059669;border-color:#059669;">
+            Sign In as Staff
+          </button>
+        </form>
+      </div>
+
+      <!-- 3. STUDENT FORM (Sign In & Sign Up) -->
+      <div id="panel-student" class="role-panel" style="display:none;">
+        <div class="student-subtabs">
+          <button type="button" class="subtab-btn active" id="btn-stu-signin" onclick="switchStudentTab('signin')">Sign In</button>
+          <button type="button" class="subtab-btn" id="btn-stu-signup" onclick="switchStudentTab('signup')">Register as Student</button>
+        </div>
+
+        <!-- Student Sign In -->
+        <div id="subpanel-student-signin">
+          <div class="demo-badge">
+            <span><span id="student-info-icon"></span> Demo student loaded</span>
+            <span style="font-family:monospace;font-size:11px;color:var(--gray-500);">rahul.student@college.edu</span>
+          </div>
+
+          <form id="student-login-form" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="student-email">College Email <span class="required">*</span></label>
+              <div class="input-group">
+                <span class="input-icon" id="student-mail-icon"></span>
+                <input id="student-email" type="email" class="form-control" value="rahul.student@college.edu" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="student-password">Password <span class="required">*</span></label>
+              <div class="input-group">
+                <span class="input-icon" id="student-lock-icon"></span>
+                <input id="student-password" type="password" class="form-control" value="StudentPassword123!" required autocomplete="current-password">
+                <button type="button" class="input-toggle" id="toggle-student-pw" aria-label="Toggle password visibility"></button>
+              </div>
+            </div>
+
+            <button id="student-login-btn" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:12px;">
+              Sign In as Student
+            </button>
+          </form>
+        </div>
+
+        <!-- Student Sign Up -->
+        <div id="subpanel-student-signup" style="display:none;">
+          <form id="student-register-form" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="reg-name">Full Name <span class="required">*</span></label>
+                <input id="reg-name" type="text" class="form-control" placeholder="John Doe" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-sid">Student ID <span class="required">*</span></label>
+                <input id="reg-sid" type="text" class="form-control" placeholder="e.g. 20240110002" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="reg-email">College Email <span class="required">*</span></label>
+              <input id="reg-email" type="email" class="form-control" placeholder="you@college.edu" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="reg-dept">Department</label>
+                <select id="reg-dept" class="form-control">
+                  <option>Computer Science</option>
+                  <option>Information Technology</option>
+                  <option>Electronics &amp; Communication</option>
+                  <option>Mechanical Engineering</option>
+                  <option>Civil Engineering</option>
+                  <option>Electrical Engineering</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-phone">Phone</label>
+                <input id="reg-phone" type="tel" class="form-control" placeholder="10-digit number">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="reg-password">Password <span class="required">*</span></label>
+                <input id="reg-password" type="password" class="form-control" placeholder="At least 6 characters" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="reg-confirm">Confirm Password <span class="required">*</span></label>
+                <input id="reg-confirm" type="password" class="form-control" placeholder="Repeat password" required>
+              </div>
+            </div>
+
+            <button id="student-register-btn" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:10px;">
+              Create Student Account
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    // Initialize icons
+    document.getElementById('header-logo-icon').innerHTML = icon('building', 26);
+    document.getElementById('icon-admin-tab').innerHTML = icon('shield', 18);
+    document.getElementById('icon-staff-tab').innerHTML = icon('wrench', 18);
+    document.getElementById('icon-student-tab').innerHTML = icon('graduation-cap', 18);
+    document.getElementById('admin-badge-icon').innerHTML = icon('shield', 14);
+    document.getElementById('admin-info-icon').innerHTML = icon('info', 14);
+    document.getElementById('admin-mail-icon').innerHTML = icon('mail', 16);
+    document.getElementById('admin-lock-icon').innerHTML = icon('lock', 16);
+    document.getElementById('staff-badge-icon').innerHTML = icon('wrench', 14);
+    document.getElementById('staff-mail-icon').innerHTML = icon('mail', 16);
+    document.getElementById('staff-lock-icon').innerHTML = icon('lock', 16);
+    document.getElementById('student-info-icon').innerHTML = icon('info', 14);
+    document.getElementById('student-mail-icon').innerHTML = icon('mail', 16);
+    document.getElementById('student-lock-icon').innerHTML = icon('lock', 16);
+    document.getElementById('alert-icon').innerHTML = icon('alert-circle', 16);
+
+    // Setup password toggles with SVG icons
+    setupPasswordToggle('admin-password', 'toggle-admin-pw');
+    setupPasswordToggle('staff-password', 'toggle-staff-pw');
+    setupPasswordToggle('student-password', 'toggle-student-pw');
+
+    function setupPasswordToggle(inputFieldId, toggleBtnId) {
+      const field = document.getElementById(inputFieldId);
+      const btn = document.getElementById(toggleBtnId);
+      if (!field || !btn) return;
+      btn.innerHTML = icon('eye', 16);
+      btn.addEventListener('click', () => {
+        const isPassword = field.type === 'password';
+        field.type = isPassword ? 'text' : 'password';
+        btn.innerHTML = isPassword ? icon('eye-off', 16) : icon('eye', 16);
+      });
+    }
+
+    // Check if this tab already has an active session
+    if (isLoggedIn()) {
+      const u = getUser();
+      if (u) {
+        document.getElementById('active-session-banner').style.display = 'block';
+        document.getElementById('session-user-name').textContent = u.name;
+        document.getElementById('session-user-role').textContent = u.role;
+        document.getElementById('goto-dashboard-btn').onclick = (e) => {
+          e.preventDefault();
+          redirectToDashboard(u.role);
+        };
+      }
+    }
+
+    // Role switcher
+    function switchRole(role) {
+      clearAlert();
+      document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.role-panel').forEach(p => p.style.display = 'none');
+
+      document.getElementById(`tab-${role}`).classList.add('active');
+      document.getElementById(`panel-${role}`).style.display = 'block';
+    }
+
+    // Staff dropdown auto-change
+    document.getElementById('staff-account-select').addEventListener('change', function () {
+      const emailField = document.getElementById('staff-email');
+      if (this.value !== 'custom') {
+        emailField.value = this.value;
+      } else {
+        emailField.value = '';
+        emailField.focus();
+      }
+    });
+
+    // Student sub-tabs (Sign In vs Sign Up)
+    function switchStudentTab(tab) {
+      clearAlert();
+      if (tab === 'signin') {
+        document.getElementById('btn-stu-signin').classList.add('active');
+        document.getElementById('btn-stu-signup').classList.remove('active');
+        document.getElementById('subpanel-student-signin').style.display = 'block';
+        document.getElementById('subpanel-student-signup').style.display = 'none';
+      } else {
+        document.getElementById('btn-stu-signup').classList.add('active');
+        document.getElementById('btn-stu-signin').classList.remove('active');
+        document.getElementById('subpanel-student-signin').style.display = 'none';
+        document.getElementById('subpanel-student-signup').style.display = 'block';
+      }
+    }
+
+    // Form Submissions
+    // 1. Admin login
+    document.getElementById('admin-login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleLogin(
+        document.getElementById('admin-email').value.trim(),
+        document.getElementById('admin-password').value,
+        document.getElementById('admin-login-btn'),
+        'admin'
+      );
+    });
+
+    // 2. Staff login
+    document.getElementById('staff-login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleLogin(
+        document.getElementById('staff-email').value.trim(),
+        document.getElementById('staff-password').value,
+        document.getElementById('staff-login-btn'),
+        'staff'
+      );
+    });
+
+    // 3. Student login
+    document.getElementById('student-login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleLogin(
+        document.getElementById('student-email').value.trim(),
+        document.getElementById('student-password').value,
+        document.getElementById('student-login-btn'),
+        'student'
+      );
+    });
+
+    // Generic Login Executor
+    async function handleLogin(email, password, btn, expectedRole) {
+      clearAlert();
+      if (!email || !password) {
+        showAlert('Please enter both email and password.');
+        return;
+      }
+
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        const res = await apiPost('/auth/login', { email, password });
+        saveSession(res.token, res.user);
+
+        showToast('success', 'Authentication Successful', `Signed in as ${res.user.name}`);
+
+        setTimeout(() => {
+          redirectToDashboard(res.user.role);
+        }, 500);
+      } catch (err) {
+        showAlert(err.message || 'Login failed. Check credentials.');
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    }
+
+    // Student Registration
+    document.getElementById('student-register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAlert();
+
+      const name            = document.getElementById('reg-name').value.trim();
+      const studentId       = document.getElementById('reg-sid').value.trim();
+      const email           = document.getElementById('reg-email').value.trim();
+      const department      = document.getElementById('reg-dept').value;
+      const phone           = document.getElementById('reg-phone').value.trim();
+      const password        = document.getElementById('reg-password').value;
+      const confirmPassword = document.getElementById('reg-confirm').value;
+
+      if (!name || !studentId || !email || !password) {
+        showAlert('All fields marked * are required.');
+        return;
+      }
+      if (password.length < 6) {
+        showAlert('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match.');
+        return;
+      }
+
+      const btn = document.getElementById('student-register-btn');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        const res = await apiPost('/auth/register', {
+          name, studentId, email, department, phone, password, role: 'student'
+        });
+        saveSession(res.token, res.user);
+        showToast('success', 'Account Registered', 'Welcome to Campus Maintenance');
+        setTimeout(() => {
+          window.location.href = '/student-dashboard.html';
+        }, 500);
+      } catch (err) {
+        showAlert(err.message || 'Registration failed.');
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    });
+
+    function showAlert(msg) {
+      const box = document.getElementById('alert-box');
+      document.getElementById('alert-msg').textContent = msg;
+      box.style.display = 'flex';
+    }
+
+    function clearAlert() {
+      document.getElementById('alert-box').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

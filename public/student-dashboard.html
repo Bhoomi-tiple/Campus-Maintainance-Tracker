@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="student-dashboard">
+
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+
+    <div class="main-content">
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-subtitle" id="header-date"></div>
+          </div>
+        </div>
+        <div class="header-right">
+          <a href="/student-notifications.html">
+            <button class="header-btn" title="Notifications" id="header-notif-btn">
+              <span class="notif-dot" id="header-notif-dot" style="display:none;"></span>
+            </button>
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" title="Sign Out of this tab" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/student-profile.html">
+            <div class="header-avatar" id="header-avatar">U</div>
+          </a>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <main class="page-content">
+
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+          <div class="welcome-text">
+            <h2 id="welcome-msg">Welcome back!</h2>
+            <p>Track your maintenance complaints and stay updated on their progress.</p>
+          </div>
+          <div class="welcome-action">
+            <a href="/student-submit.html" class="btn btn-white" id="banner-submit-btn">
+              Submit Complaint
+            </a>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue" id="stat-icon-total"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-total">—</div>
+              <div class="stat-label">Total Submitted</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow" id="stat-icon-pending"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">—</div>
+              <div class="stat-label">Pending</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon cyan" id="stat-icon-inprogress"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-inprogress">—</div>
+              <div class="stat-label">In Progress</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green" id="stat-icon-resolved"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-resolved">—</div>
+              <div class="stat-label">Resolved</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Complaints -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent Complaints</div>
+              <div class="card-subtitle">Your latest submitted complaints (real-time sync)</div>
+            </div>
+            <a href="/student-complaints.html" class="btn btn-outline btn-sm">View All &rarr;</a>
+          </div>
+          <div id="recent-complaints-body">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    if (user) {
+      initSidebar('student', 'student-dashboard');
+
+      // Setup icons
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-notif-btn').innerHTML = icon('bell', 18) + '<span class="notif-dot" id="header-notif-dot" style="display:none;"></span>';
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('banner-submit-btn').innerHTML = `${icon('plus', 16)} <span>Submit Complaint</span>`;
+
+      document.getElementById('stat-icon-total').innerHTML = icon('clipboard-list', 22);
+      document.getElementById('stat-icon-pending').innerHTML = icon('clock', 22);
+      document.getElementById('stat-icon-inprogress').innerHTML = icon('wrench', 22);
+      document.getElementById('stat-icon-resolved').innerHTML = icon('check-circle', 22);
+
+      // Welcome message
+      document.getElementById('welcome-msg').textContent = `Welcome back, ${user.name.split(' ')[0]}!`;
+      document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+
+      loadDashboard();
+      // Real-time automatic synchronization across tabs and background polling
+      setupDataSync(loadDashboard, 4000);
+    }
+
+    async function loadDashboard() {
+      try {
+        const complaints = await apiGet('/complaints/mine');
+        if (!complaints) return;
+
+        const total      = complaints.length;
+        const pending    = complaints.filter(c => ['Submitted', 'Pending', 'Assigned'].includes(c.status)).length;
+        const inprogress = complaints.filter(c => c.status === 'In Progress').length;
+        const resolved   = complaints.filter(c => ['Resolved', 'Closed'].includes(c.status)).length;
+
+        document.getElementById('stat-total').textContent      = total;
+        document.getElementById('stat-pending').textContent    = pending;
+        document.getElementById('stat-inprogress').textContent = inprogress;
+        document.getElementById('stat-resolved').textContent   = resolved;
+
+        renderRecentTable(complaints.slice(0, 8));
+      } catch (err) {
+        document.getElementById('recent-complaints-body').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Could not load complaints</h3></div>`;
+      }
+    }
+
+    function renderRecentTable(complaints) {
+      const body = document.getElementById('recent-complaints-body');
+      if (!complaints.length) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">${icon('clipboard', 40)}</div>
+            <h3>No complaints yet</h3>
+            <p>You haven't submitted any maintenance complaints.</p>
+            <a href="/student-submit.html" class="btn btn-primary">Submit First Complaint</a>
+          </div>`;
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Title / Category</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tbody"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById('recent-tbody');
+      complaints.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ticket-id">${c.ticketId || c._id.slice(-6).toUpperCase()}</span></td>
+          <td>
+            <div style="font-weight:600;color:var(--gray-800)">${c.title || c.category}</div>
+            <div style="font-size:12px;color:var(--gray-400)">${c.category}</div>
+          </td>
+          <td>${c.building ? c.building + ', ' : ''}Room ${c.roomNumber}</td>
+          <td>${priorityBadge(c.priority || 'Medium')}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td>${formatDate(c.createdAt)}</td>
+          <td>
+            <a href="/student-complaint-detail.html?id=${c._id}" class="btn btn-outline btn-sm">View</a>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>

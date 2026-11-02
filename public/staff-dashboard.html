@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Dashboard — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="staff-dashboard">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Staff Dashboard</div>
+            <div class="page-subtitle" id="header-date"></div>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/staff-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+      <main class="page-content">
+
+        <div class="welcome-banner" style="background:linear-gradient(135deg,#065f46,#047857);">
+          <div class="welcome-text">
+            <h2 id="welcome-msg">Welcome, Maintenance Staff</h2>
+            <p>Manage your assigned maintenance tasks efficiently in real time.</p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue" id="stat-icon-total"></div>
+            <div class="stat-info"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Total Assigned</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow" id="stat-icon-new"></div>
+            <div class="stat-info"><div class="stat-value" id="stat-new">—</div><div class="stat-label">New Assignments</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon cyan" id="stat-icon-inprogress"></div>
+            <div class="stat-info"><div class="stat-value" id="stat-inprogress">—</div><div class="stat-label">In Progress</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green" id="stat-icon-done"></div>
+            <div class="stat-info"><div class="stat-value" id="stat-done">—</div><div class="stat-label">Completed</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red" id="stat-icon-urgent"></div>
+            <div class="stat-info"><div class="stat-value" id="stat-urgent">—</div><div class="stat-label">Urgent</div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">My Assigned Complaints</div><div class="card-subtitle">Active maintenance tasks (auto-synced)</div></div>
+            <a href="/staff-complaints.html" class="btn btn-outline btn-sm">View All &rarr;</a>
+          </div>
+          <div id="assigned-body">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['staff']);
+    if (user) {
+      initSidebar('staff', 'staff-dashboard');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+
+      document.getElementById('stat-icon-total').innerHTML = icon('clipboard-list', 22);
+      document.getElementById('stat-icon-new').innerHTML = icon('clock', 22);
+      document.getElementById('stat-icon-inprogress').innerHTML = icon('wrench', 22);
+      document.getElementById('stat-icon-done').innerHTML = icon('check-circle', 22);
+      document.getElementById('stat-icon-urgent').innerHTML = icon('alert-triangle', 22);
+
+      document.getElementById('welcome-msg').textContent = `Welcome, ${user.name.split(' ')[0]}!`;
+      document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday:'long', day:'numeric', month:'long', year:'numeric'
+      });
+
+      loadDashboard();
+      setupDataSync(loadDashboard, 4000);
+    }
+
+    async function loadDashboard() {
+      try {
+        const complaints = await apiGet('/complaints/assigned') || [];
+        document.getElementById('stat-total').textContent      = complaints.length;
+        document.getElementById('stat-new').textContent        = complaints.filter(c=>c.status==='Assigned').length;
+        document.getElementById('stat-inprogress').textContent = complaints.filter(c=>c.status==='In Progress').length;
+        document.getElementById('stat-done').textContent       = complaints.filter(c=>['Resolved','Closed'].includes(c.status)).length;
+        document.getElementById('stat-urgent').textContent     = complaints.filter(c=>c.priority==='Urgent').length;
+        renderTable(complaints.filter(c=>!['Resolved','Closed'].includes(c.status)).slice(0,8));
+      } catch(err) {
+        document.getElementById('assigned-body').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Failed to load</h3></div>`;
+      }
+    }
+
+    function renderTable(list) {
+      const body = document.getElementById('assigned-body');
+      if (!list.length) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">${icon('check-circle', 36)}</div>
+            <h3>No active tasks</h3>
+            <p>You have no pending assignments right now.</p>
+          </div>`;
+        return;
+      }
+      body.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Title</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="staff-tbody"></tbody>
+          </table>
+        </div>`;
+      const tbody = document.getElementById('staff-tbody');
+      list.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ticket-id">${c.ticketId || c._id.slice(-6).toUpperCase()}</span></td>
+          <td style="font-weight:600">${c.title || c.category}</td>
+          <td>${c.building||''}${c.building?' • ':''}Rm ${c.roomNumber}</td>
+          <td>${priorityBadge(c.priority||'Medium')}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td>${formatDate(c.createdAt)}</td>
+          <td><a href="/staff-complaint-detail.html?id=${c._id}" class="btn btn-outline btn-sm">Manage &rarr;</a></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>

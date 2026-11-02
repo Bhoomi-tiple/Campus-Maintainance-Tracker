@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaint Details — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .detail-grid { display:grid; grid-template-columns:2fr 1fr; gap:20px; }
+    @media(max-width:900px){ .detail-grid{ grid-template-columns:1fr; } }
+    .info-row { display:flex; gap:8px; padding:10px 0; border-bottom:1px solid var(--gray-100); }
+    .info-row:last-child { border-bottom:none; }
+    .info-label { font-size:12px; font-weight:600; color:var(--gray-500); width:130px; flex-shrink:0; }
+    .info-value { font-size:13.5px; color:var(--gray-800); }
+    .star-btn { background: none; border: none; cursor: pointer; color: var(--gray-300); padding: 2px; }
+    .star-btn.active { color: #f59e0b; }
+  </style>
+</head>
+<body data-page="student-complaints">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Complaint Details</div>
+            <div class="page-subtitle" id="header-ticket">Loading…</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <a href="/student-complaints.html" class="btn btn-ghost btn-sm" id="btn-back">
+            Back to Complaints
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/student-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+
+      <main class="page-content" id="page-body">
+        <div class="loading-overlay"><div class="spinner"></div></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    let complaintId = null;
+
+    if (user) {
+      initSidebar('student', 'student-complaints');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('btn-back').innerHTML = `${icon('arrow-left', 14)} <span>Back</span>`;
+
+      complaintId = new URLSearchParams(window.location.search).get('id');
+      if (!complaintId) {
+        window.location.href = '/student-complaints.html';
+      } else {
+        loadComplaint(complaintId);
+        setupDataSync(() => loadComplaint(complaintId, true), 4000);
+      }
+    }
+
+    async function loadComplaint(id, silent = false) {
+      const body = document.getElementById('page-body');
+      try {
+        const c = await apiGet(`/complaints/${id}`);
+        if (!c) return;
+
+        document.getElementById('header-ticket').textContent = c.ticketId || id;
+        document.title = `${c.ticketId || 'Complaint'} — Campus Maintenance`;
+
+        const statusSteps = ['Submitted','Assigned','In Progress','Resolved','Closed'];
+        const currIdx = statusSteps.indexOf(c.status === 'Pending' ? 'Submitted' : c.status);
+
+        // Keep comment text if user is typing
+        const activeCommentText = document.getElementById('comment-text')?.value || '';
+
+        body.innerHTML = `
+          <div class="detail-grid">
+            <!-- Left Column -->
+            <div style="display:flex;flex-direction:column;gap:20px;">
+
+              <!-- Progress Bar -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">Complaint Progress</div>
+                  ${statusBadge(c.status)}
+                </div>
+                <div class="card-body">
+                  <div class="progress-steps">
+                    ${statusSteps.map((s,i) => `
+                      <div class="progress-step ${i < currIdx ? 'done' : i === currIdx ? 'active' : ''}">
+                        <div class="step-dot">${i < currIdx ? icon('check', 14) : i+1}</div>
+                        <div class="step-label">${s}</div>
+                      </div>`).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Details -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">${c.title || c.category}</div>
+                  ${priorityBadge(c.priority || 'Medium')}
+                </div>
+                <div class="card-body">
+                  <p style="color:var(--gray-700);line-height:1.7;margin-bottom:20px;">${c.description}</p>
+                  <div class="info-row"><span class="info-label">Category</span><span class="info-value">${c.category}</span></div>
+                  <div class="info-row"><span class="info-label">Location</span><span class="info-value">${c.building ? c.building+', ' : ''}${c.floor ? 'Floor '+c.floor+', ' : ''}Room ${c.roomNumber}</span></div>
+                  <div class="info-row"><span class="info-label">Submitted</span><span class="info-value">${formatDateTime(c.createdAt)}</span></div>
+                  <div class="info-row"><span class="info-label">Last Updated</span><span class="info-value">${formatDateTime(c.updatedAt)}</span></div>
+                  ${c.resolvedAt ? `<div class="info-row"><span class="info-label">Resolved On</span><span class="info-value">${formatDateTime(c.resolvedAt)}</span></div>` : ''}
+                  ${c.assignedStaff ? `<div class="info-row"><span class="info-label">Assigned Staff</span><span class="info-value">${c.assignedStaff.name || 'Staff Member'}</span></div>` : ''}
+                </div>
+              </div>
+
+              <!-- Status History -->
+              ${(c.statusHistory && c.statusHistory.length) ? `
+              <div class="card">
+                <div class="card-header"><div class="card-title">Status History</div></div>
+                <div class="card-body">
+                  <div class="timeline">
+                    ${c.statusHistory.map((h,i) => `
+                      <div class="timeline-item">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-dot done">${icon('check', 12)}</div>
+                        <div class="timeline-content">
+                          <div class="timeline-title">${h.status}</div>
+                          <div class="timeline-meta">${formatDateTime(h.timestamp)} ${h.updatedBy ? '· by ' + h.updatedBy : ''}</div>
+                          ${h.note ? `<div class="timeline-note">${h.note}</div>` : ''}
+                        </div>
+                      </div>`).join('')}
+                  </div>
+                </div>
+              </div>` : ''}
+
+              <!-- Comments -->
+              <div class="card" id="comments-card">
+                <div class="card-header"><div class="card-title">Discussion &amp; Work Updates</div></div>
+                <div id="comments-list"><div class="loading-overlay"><div class="spinner"></div></div></div>
+                <div class="card-body" style="border-top:1px solid var(--gray-100);">
+                  <div class="form-group" style="margin-bottom:10px;">
+                    <textarea id="comment-text" class="form-control" rows="3" placeholder="Add a question or update…">${activeCommentText}</textarea>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="submitComment('${c._id}')">${icon('message-square', 14)} <span>Post Comment</span></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column -->
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <!-- Ticket Info -->
+              <div class="card">
+                <div class="card-header"><div class="card-title">Ticket Reference</div></div>
+                <div class="card-body">
+                  <div style="text-align:center;padding:12px 0;">
+                    <div style="font-size:11px;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Ticket ID</div>
+                    <div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--primary-700);background:var(--primary-50);padding:8px 16px;border-radius:8px;">${c.ticketId || c._id.slice(-6).toUpperCase()}</div>
+                  </div>
+                  <hr class="divider">
+                  <div class="info-row"><span class="info-label">Status</span>${statusBadge(c.status)}</div>
+                  <div class="info-row"><span class="info-label">Priority</span>${priorityBadge(c.priority || 'Medium')}</div>
+                  ${c.slaDeadline ? `
+                  <div style="margin-top:12px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--gray-500);margin-bottom:6px;">SLA Deadline</div>
+                    ${renderSLA(c.slaDeadline, c.status)}
+                  </div>` : ''}
+                </div>
+              </div>
+
+              <!-- Feedback (if resolved) -->
+              ${['Resolved','Closed'].includes(c.status) && !c.feedback ? `
+              <div class="card">
+                <div class="card-header"><div class="card-title">Rate Resolution</div></div>
+                <div class="card-body">
+                  <p class="text-muted mb-16">How satisfied are you with the resolution of this issue?</p>
+                  <div class="star-rating" id="star-rating">
+                    ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-val="${n}" onclick="selectStar(${n})">${icon('star', 22)}</button>`).join('')}
+                  </div>
+                  <input type="hidden" id="rating-val" value="0">
+                  <div class="form-group mt-16">
+                    <textarea id="feedback-msg" class="form-control" rows="3" placeholder="Optional feedback or comments…"></textarea>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="submitFeedback('${c._id}')">Submit Feedback</button>
+                </div>
+              </div>` : ''}
+
+              ${c.feedback ? `
+              <div class="card">
+                <div class="card-header"><div class="card-title">Your Feedback</div></div>
+                <div class="card-body">
+                  <div style="display:flex;gap:4px;color:#f59e0b;margin-bottom:8px;">
+                    ${[1,2,3,4,5].map(n=>n<=c.feedback.rating ? icon('star-fill', 18) : icon('star', 18)).join('')}
+                  </div>
+                  ${c.feedback.message ? `<p style="font-size:13px;color:var(--gray-700);line-height:1.5;">"${c.feedback.message}"</p>` : ''}
+                </div>
+              </div>` : ''}
+            </div>
+          </div>`;
+
+        loadComments(id);
+      } catch (err) {
+        if (!silent) {
+          body.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Complaint not found</h3><p>${err.message}</p></div>`;
+        }
+      }
+    }
+
+    async function loadComments(complaintId) {
+      const listEl = document.getElementById('comments-list');
+      if (!listEl) return;
+      try {
+        const comments = await apiGet(`/comments/${complaintId}`) || [];
+        if (!comments.length) {
+          listEl.innerHTML = `<div style="padding:20px 22px;color:var(--gray-400);font-size:13px;">No updates yet.</div>`;
+          return;
+        }
+        listEl.innerHTML = `<div style="padding:0 22px;">${comments.map(c => `
+          <div class="comment">
+            <div class="comment-avatar ${c.authorRole}">${c.authorName?.[0]?.toUpperCase() || 'U'}</div>
+            <div class="comment-body">
+              <div class="comment-header">
+                <span class="comment-author">${c.authorName}</span>
+                <span class="comment-role role-${c.authorRole}">${c.authorRole}</span>
+                <span class="comment-time">${timeAgo(c.createdAt)}</span>
+              </div>
+              <div class="comment-text">${c.text}</div>
+            </div>
+          </div>`).join('')}</div>`;
+      } catch { /* ignore */ }
+    }
+
+    async function submitComment(complaintId) {
+      const text = document.getElementById('comment-text').value.trim();
+      if (!text) return showToast('warning', 'Empty comment', 'Please write a message first.');
+      try {
+        await apiPost(`/comments/${complaintId}`, { text });
+        document.getElementById('comment-text').value = '';
+        showToast('success', 'Comment posted');
+        loadComments(complaintId);
+      } catch (err) {
+        showToast('error', 'Failed to post comment', err.message);
+      }
+    }
+
+    let selectedRating = 0;
+    function selectStar(val) {
+      selectedRating = val;
+      document.getElementById('rating-val').value = val;
+      document.querySelectorAll('.star-btn').forEach(s => {
+        const currentVal = parseInt(s.dataset.val);
+        const isActive = currentVal <= val;
+        s.classList.toggle('active', isActive);
+        s.innerHTML = isActive ? icon('star-fill', 22) : icon('star', 22);
+      });
+    }
+
+    async function submitFeedback(complaintId) {
+      if (!selectedRating) return showToast('warning', 'Select a rating', 'Please select 1–5 stars.');
+      const message = document.getElementById('feedback-msg')?.value.trim() || '';
+      try {
+        await apiPost(`/feedback/${complaintId}`, { rating: selectedRating, message });
+        showToast('success', 'Feedback submitted! Thank you.');
+        setTimeout(() => loadComplaint(complaintId), 600);
+      } catch (err) {
+        showToast('error', 'Feedback failed', err.message);
+      }
+    }
+
+    function renderSLA(deadline, status) {
+      if (['Resolved','Closed'].includes(status)) return `<div class="sla-label safe">Resolved</div>`;
+      const now = Date.now();
+      const dl  = new Date(deadline).getTime();
+      const total = 86400000 * 3;
+      const pct = Math.min(100, Math.max(0, ((now - (dl - total)) / total) * 100));
+      const overdue = now > dl;
+      const cls = overdue ? 'overdue' : pct > 70 ? 'warning' : 'safe';
+      return `
+        <div class="sla-bar"><div class="sla-fill ${cls}" style="width:${pct}%"></div></div>
+        <div class="sla-label ${cls}">${overdue ? 'Overdue — ' : 'Due '}${formatDate(deadline)}</div>`;
+    }
+  </script>
+</body>
+</html>

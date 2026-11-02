@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Maintenance Tracker (Legacy Form)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body style="background:var(--gray-50); padding:20px;">
+
+    <header style="max-width:800px; margin:0 auto 20px auto; text-align:center;">
+        <h1>Campus Maintenance Tracker</h1>
+        <p>Report and track campus maintenance complaints (Legacy Portal)</p>
+        <div style="margin-top:10px;">
+            <a href="/login.html" class="btn btn-primary btn-sm">Go to CMMS Login & Dashboard →</a>
+        </div>
+    </header>
+
+    <main style="max-width:800px; margin:0 auto;">
+        <section class="form-section">
+            <h2>Submit a Complaint</h2>
+
+            <form id="complaintForm">
+                <input type="text" id="studentName"
+                    placeholder="Student Name" required>
+
+                <input type="text" id="roomNumber"
+                    placeholder="Room Number" required>
+
+                <select id="category" required>
+                    <option value="">Select Category</option>
+                    <option>Electrical</option>
+                    <option>Plumbing</option>
+                    <option>Cleanliness</option>
+                    <option>Furniture</option>
+                    <option>Other</option>
+                </select>
+
+                <textarea id="description"
+                    placeholder="Describe your complaint"
+                    required></textarea>
+
+                <button type="submit">Submit Complaint</button>
+            </form>
+            <p id="message"></p>
+        </section>
+
+        <section class="complaints-section">
+            <h2>All Complaints</h2>
+            <div id="complaintsList"></div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

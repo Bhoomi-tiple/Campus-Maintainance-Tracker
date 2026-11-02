@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Students — Admin</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="admin-students">
+
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Manage Students</div>
+            <div class="page-subtitle">Registered student accounts and records</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-primary btn-sm" onclick="openStudentModal()" id="btn-add-student">
+            Add Student
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/admin-profile.html"><div class="header-avatar" id="header-avatar">A</div></a>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="card">
+          <div class="filters-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon" id="search-icon"></span>
+              <input id="search" type="text" class="search-input" placeholder="Search by name, student ID, or email…">
+            </div>
+            <select id="filter-dept" class="filter-select">
+              <option value="">All Departments</option>
+              <option>Computer Science</option>
+              <option>Information Technology</option>
+              <option>Electronics &amp; Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Electrical Engineering</option>
+              <option>Chemical Engineering</option>
+              <option>Business Administration</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div id="table-body">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+
+          <div class="pagination-wrap">
+            <span id="page-info" class="text-muted"></span>
+            <div class="pagination" id="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Student Create/Edit Modal -->
+  <div class="modal-overlay" id="student-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="student-modal-title">Add New Student</div>
+        <button class="modal-close" onclick="closeModal('student-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="student-id-field">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="stu-name">Full Name <span class="required">*</span></label>
+            <input id="stu-name" type="text" class="form-control" placeholder="John Doe" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="stu-roll">Student ID <span class="required">*</span></label>
+            <input id="stu-roll" type="text" class="form-control" placeholder="e.g. 20240110002" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="stu-email">College Email <span class="required">*</span></label>
+          <input id="stu-email" type="email" class="form-control" placeholder="john@college.edu" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="stu-dept">Department</label>
+            <select id="stu-dept" class="form-control">
+              <option>Computer Science</option>
+              <option>Information Technology</option>
+              <option>Electronics &amp; Communication</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Electrical Engineering</option>
+              <option>Chemical Engineering</option>
+              <option>Business Administration</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="stu-phone">Phone Number</label>
+            <input id="stu-phone" type="tel" class="form-control" placeholder="10-digit number">
+          </div>
+        </div>
+        <div class="form-group" id="stu-pw-group">
+          <label class="form-label" for="stu-password">Password <span class="required" id="stu-pw-req">*</span></label>
+          <input id="stu-password" type="password" class="form-control" placeholder="At least 6 characters">
+          <div class="form-hint" id="stu-pw-hint" style="display:none;">Leave blank to keep existing password</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('student-modal')">Cancel</button>
+        <button class="btn btn-primary" id="save-student-btn" onclick="saveStudent()">Save Student</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['admin']);
+    if (user) {
+      initSidebar('admin', 'admin-students');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('btn-add-student').innerHTML = `${icon('plus', 14)} <span>Add Student</span>`;
+      document.getElementById('search-icon').innerHTML = icon('search', 16);
+
+      loadStudents();
+      setupDataSync(loadStudents, 4000);
+    }
+
+    let allStudents = [];
+    let currentPage = 1;
+    const PAGE_SIZE = 10;
+
+    async function loadStudents() {
+      try {
+        allStudents = await apiGet('/users?role=student') || [];
+        applyFilters();
+      } catch (err) {
+        document.getElementById('table-body').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Failed to load students</h3><p>${err.message}</p></div>`;
+      }
+    }
+
+    function applyFilters() {
+      const search = document.getElementById('search').value.toLowerCase().trim();
+      const dept = document.getElementById('filter-dept').value;
+
+      let filtered = allStudents.filter(s => {
+        if (search) {
+          const matchName = (s.name || '').toLowerCase().includes(search);
+          const matchEmail = (s.email || '').toLowerCase().includes(search);
+          const matchSid = (s.studentId || '').toLowerCase().includes(search);
+          if (!matchName && !matchEmail && !matchSid) return false;
+        }
+        if (dept && s.department !== dept) return false;
+        return true;
+      });
+
+      currentPage = 1;
+      renderTable(filtered);
+    }
+
+    document.getElementById('search').addEventListener('input', applyFilters);
+    document.getElementById('filter-dept').addEventListener('change', applyFilters);
+
+    function renderTable(filtered) {
+      const body = document.getElementById('table-body');
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const paged = filtered.slice(start, start + PAGE_SIZE);
+
+      document.getElementById('page-info').textContent = total
+        ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, total)} of ${total} students`
+        : '0 students found';
+
+      if (!paged.length) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">${icon('graduation-cap', 40)}</div>
+            <h3>No students found</h3>
+            <p>Try different filters or add a new student.</p>
+          </div>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Phone</th>
+                <th>Complaints</th>
+                <th>Registered</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-tbody"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById('students-tbody');
+      paged.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ticket-id">${s.studentId || '—'}</span></td>
+          <td style="font-weight:600; color:var(--gray-800);">${s.name}</td>
+          <td>${s.email}</td>
+          <td>${s.department || '—'}</td>
+          <td>${s.phone || '—'}</td>
+          <td><span class="badge badge-assigned">${s.complaintCount || 0}</span></td>
+          <td>${formatDate(s.createdAt)}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-outline btn-sm" onclick="editStudent('${s._id}')">${icon('edit', 13)} <span>Edit</span></button>
+              <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s._id}', '${s.name}')">${icon('trash', 13)}</button>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      renderPagination('pagination', currentPage, totalPages, (p) => {
+        currentPage = p;
+        renderTable(filtered);
+      });
+    }
+
+    function openStudentModal() {
+      document.getElementById('student-id-field').value = '';
+      document.getElementById('student-modal-title').textContent = 'Add New Student';
+      document.getElementById('stu-name').value = '';
+      document.getElementById('stu-roll').value = '';
+      document.getElementById('stu-email').value = '';
+      document.getElementById('stu-phone').value = '';
+      document.getElementById('stu-dept').value = 'Computer Science';
+      document.getElementById('stu-password').value = '';
+      document.getElementById('stu-password').required = true;
+      document.getElementById('stu-pw-req').style.display = 'inline';
+      document.getElementById('stu-pw-hint').style.display = 'none';
+      openModal('student-modal');
+    }
+
+    function editStudent(id) {
+      const student = allStudents.find(s => s._id === id);
+      if (!student) return;
+      document.getElementById('student-id-field').value = id;
+      document.getElementById('student-modal-title').textContent = `Edit Student: ${student.name}`;
+      document.getElementById('stu-name').value = student.name || '';
+      document.getElementById('stu-roll').value = student.studentId || '';
+      document.getElementById('stu-email').value = student.email || '';
+      document.getElementById('stu-phone').value = student.phone || '';
+      document.getElementById('stu-dept').value = student.department || 'Computer Science';
+      document.getElementById('stu-password').value = '';
+      document.getElementById('stu-password').required = false;
+      document.getElementById('stu-pw-req').style.display = 'none';
+      document.getElementById('stu-pw-hint').style.display = 'block';
+      openModal('student-modal');
+    }
+
+    async function saveStudent() {
+      const id = document.getElementById('student-id-field').value;
+      const name = document.getElementById('stu-name').value.trim();
+      const studentId = document.getElementById('stu-roll').value.trim();
+      const email = document.getElementById('stu-email').value.trim();
+      const phone = document.getElementById('stu-phone').value.trim();
+      const department = document.getElementById('stu-dept').value;
+      const password = document.getElementById('stu-password').value;
+
+      if (!name || !email || !studentId) {
+        showToast('warning', 'Missing fields', 'Name, Student ID, and Email are required');
+        return;
+      }
+
+      if (!id && (!password || password.length < 6)) {
+        showToast('warning', 'Invalid password', 'Password must be at least 6 characters');
+        return;
+      }
+
+      const btn = document.getElementById('save-student-btn');
+      btn.classList.add('btn-loading'); btn.disabled = true;
+
+      try {
+        if (id) {
+          const payload = { name, studentId, email, phone, department };
+          if (password) payload.password = password;
+          await apiPut(`/users/${id}`, payload);
+          showToast('success', 'Student updated successfully');
+        } else {
+          await apiPost('/users', { name, studentId, email, phone, department, password, role: 'student' });
+          showToast('success', 'Student created successfully');
+        }
+        closeModal('student-modal');
+        loadStudents();
+      } catch (err) {
+        showToast('error', 'Operation failed', err.message);
+      } finally {
+        btn.classList.remove('btn-loading'); btn.disabled = false;
+      }
+    }
+
+    async function deleteStudent(id, name) {
+      if (!confirm(`Are you sure you want to delete student "${name}"?`)) return;
+      try {
+        await apiDelete(`/users/${id}`);
+        showToast('success', 'Student deleted');
+        loadStudents();
+      } catch (err) {
+        showToast('error', 'Delete failed', err.message);
+      }
+    }
+  </script>
+</body>
+</html>

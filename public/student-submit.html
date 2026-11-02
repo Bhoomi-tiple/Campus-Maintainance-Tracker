@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Complaint — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="student-submit">
+
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Submit Complaint</div>
+            <div class="page-subtitle">Report a new maintenance issue</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <a href="/student-notifications.html">
+            <button class="header-btn" id="header-notif-btn" title="Notifications">
+              <span class="notif-dot" id="header-notif-dot" style="display:none;"></span>
+            </button>
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/student-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+
+      <main class="page-content">
+        <div class="page-header">
+          <h1>Submit a New Complaint</h1>
+          <p>Fill in the details below. Our maintenance team will be notified immediately.</p>
+        </div>
+
+        <div class="card" style="max-width:720px;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Complaint Details</div>
+              <div class="card-subtitle">All fields marked with * are required</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="submit-alert" class="alert" style="display:none;"></div>
+
+            <form id="complaint-form" novalidate>
+              <!-- Title -->
+              <div class="form-group">
+                <label class="form-label" for="title">Complaint Title <span class="required">*</span></label>
+                <input id="title" type="text" class="form-control" placeholder="e.g. Broken ceiling fan in room 204" required>
+                <span id="title-err" class="form-error"></span>
+              </div>
+
+              <!-- Category + Priority -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="category">Category <span class="required">*</span></label>
+                  <select id="category" class="form-control" required>
+                    <option value="">Select Category</option>
+                    <option>Electrical</option>
+                    <option>Plumbing</option>
+                    <option>Cleanliness</option>
+                    <option>Furniture</option>
+                    <option>Internet and Networking</option>
+                    <option>Laboratory Equipment</option>
+                    <option>Hostel Maintenance</option>
+                    <option>Other</option>
+                  </select>
+                  <span id="cat-err" class="form-error"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="priority">Priority</label>
+                  <select id="priority" class="form-control">
+                    <option value="Low">Low</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Building + Floor + Room -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="building">Campus Building</label>
+                  <input id="building" type="text" class="form-control" placeholder="e.g. Block A, Hostel B">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="floor">Floor</label>
+                  <input id="floor" type="text" class="form-control" placeholder="e.g. Ground, 1st">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="roomNumber">Room Number <span class="required">*</span></label>
+                <input id="roomNumber" type="text" class="form-control" placeholder="e.g. 204, Lab-3" required>
+                <span id="room-err" class="form-error"></span>
+              </div>
+
+              <!-- Description -->
+              <div class="form-group">
+                <label class="form-label" for="description">Detailed Description <span class="required">*</span></label>
+                <textarea id="description" class="form-control" rows="5"
+                  placeholder="Describe the issue in detail — what is broken, when it started, how severe it is…" required></textarea>
+                <span id="desc-err" class="form-error"></span>
+                <div class="form-hint">Minimum 20 characters.</div>
+              </div>
+
+              <div style="display:flex;gap:12px;margin-top:8px;">
+                <button type="submit" id="submit-btn" class="btn btn-primary btn-lg">
+                  Submit Complaint
+                </button>
+                <a href="/student-dashboard.html" class="btn btn-ghost btn-lg">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['student']);
+    if (user) {
+      initSidebar('student', 'student-submit');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-notif-btn').innerHTML = icon('bell', 18) + '<span class="notif-dot" id="header-notif-dot" style="display:none;"></span>';
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('submit-btn').innerHTML = `${icon('plus', 16)} <span>Submit Complaint</span>`;
+    }
+
+    document.getElementById('complaint-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const title       = document.getElementById('title').value.trim();
+      const category    = document.getElementById('category').value;
+      const priority    = document.getElementById('priority').value;
+      const building    = document.getElementById('building').value.trim();
+      const floor       = document.getElementById('floor').value.trim();
+      const roomNumber  = document.getElementById('roomNumber').value.trim();
+      const description = document.getElementById('description').value.trim();
+
+      let valid = true;
+      if (!title)       { showFieldError('title-err', 'Title is required.');          valid = false; }
+      if (!category)    { showFieldError('cat-err',   'Please select a category.');   valid = false; }
+      if (!roomNumber)  { showFieldError('room-err',  'Room number is required.');    valid = false; }
+      if (description.length < 20) {
+        showFieldError('desc-err', 'Description must be at least 20 characters.'); valid = false;
+      }
+      if (!valid) return;
+
+      const btn = document.getElementById('submit-btn');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        const res = await apiPost('/complaints', {
+          title, category, priority, building, floor, roomNumber, description
+        });
+        showAlert('success', `Complaint submitted successfully. Your ticket ID is <strong>${res.ticketId}</strong>`);
+        document.getElementById('complaint-form').reset();
+        showToast('success', 'Complaint Submitted', `Ticket: ${res.ticketId}`);
+        setTimeout(() => window.location.href = '/student-complaints.html', 1500);
+      } catch (err) {
+        showAlert('error', (err.message || 'Submission failed. Please try again.'));
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    });
+
+    function showAlert(type, msg) {
+      const el = document.getElementById('submit-alert');
+      el.className = `alert alert-${type}`;
+      el.innerHTML = msg;
+      el.style.display = 'flex';
+    }
+
+    function showFieldError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.add('visible'); }
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.form-error').forEach(el => {
+        el.textContent = ''; el.classList.remove('visible');
+      });
+      document.getElementById('submit-alert').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

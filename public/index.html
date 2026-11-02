@@ -1,54 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Maintenance Tracker</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/login.html">
+  <title>Redirecting to Login...</title>
+  <script>
+    window.location.href = "/login.html";
+  </script>
 </head>
-<body>
-
-    <header>
-        <h1>Campus Maintenance Tracker</h1>
-        <p>Report and track campus maintenance complaints</p>
-    </header>
-
-    <main>
-        <section class="form-section">
-            <h2>Submit a Complaint</h2>
-
-            <form id="complaintForm">
-                <input type="text" id="studentName"
-                    placeholder="Student Name" required>
-
-                <input type="text" id="roomNumber"
-                    placeholder="Room Number" required>
-
-                <select id="category" required>
-                    <option value="">Select Category</option>
-                    <option>Electrical</option>
-                    <option>Plumbing</option>
-                    <option>Cleanliness</option>
-                    <option>Furniture</option>
-                    <option>Other</option>
-                </select>
-
-                <textarea id="description"
-                    placeholder="Describe your complaint"
-                    required></textarea>
-
-                <button type="submit">Submit Complaint</button>
-            </form>
-            <p id="message"></p>
-        </section>
-
-        <section class="complaints-section">
-            <h2>All Complaints</h2>
-            <div id="complaintsList"></div>
-        </section>
-    </main>
-
-    <script src="script.js"></script>
+<body style="font-family: sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh;">
+  <p>Redirecting to <a href="/login.html">Login</a>...</p>
 </body>
 </html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics &amp; Reports — Admin</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body data-page="admin-analytics">
+
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Analytics &amp; Insights</div>
+            <div class="page-subtitle">Real-time campus maintenance intelligence</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <a href="/admin-dashboard.html" class="btn btn-outline btn-sm" id="btn-back-dashboard">
+            Dashboard
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/admin-profile.html"><div class="header-avatar" id="header-avatar">A</div></a>
+        </div>
+      </header>
+
+      <main class="page-content">
+
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue" id="icon-an-total"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-total">—</div>
+              <div class="stat-label">Total Logged</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green" id="icon-an-rate"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-res-rate">—</div>
+              <div class="stat-label">Resolution Rate</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow" id="icon-an-star"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-rating">—</div>
+              <div class="stat-label">Student Rating</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red" id="icon-an-urgent"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-urgent">—</div>
+              <div class="stat-label">Active Urgent</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid 1 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Complaints by Category</div>
+              <div class="card-subtitle">Volume distribution across disciplines</div>
+            </div>
+            <div class="card-body" style="height:300px; position:relative;">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Complaints by Status</div>
+              <div class="card-subtitle">Current workflow lifecycle stages</div>
+            </div>
+            <div class="card-body" style="height:300px; position:relative;">
+              <canvas id="statusChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid 2 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Priority Distribution</div>
+              <div class="card-subtitle">Severity level of campus issues</div>
+            </div>
+            <div class="card-body" style="height:300px; position:relative;">
+              <canvas id="priorityChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Campus Community Summary</div>
+              <div class="card-subtitle">Users &amp; operational workload</div>
+            </div>
+            <div class="card-body">
+              <div style="display:flex; flex-direction:column; gap:16px; padding:10px 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--gray-50); border-radius:8px;">
+                  <div>
+                    <div style="font-weight:600; font-size:15px;">Registered Students</div>
+                    <div style="font-size:12px; color:var(--gray-500);">Can submit maintenance complaints</div>
+                  </div>
+                  <div style="font-size:24px; font-weight:700; color:var(--primary-700);" id="comm-students">—</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--gray-50); border-radius:8px;">
+                  <div>
+                    <div style="font-weight:600; font-size:15px;">Active Maintenance Staff</div>
+                    <div style="font-size:12px; color:var(--gray-500);">Assigned to tickets and on-ground work</div>
+                  </div>
+                  <div style="font-size:24px; font-weight:700; color:var(--primary-700);" id="comm-staff">—</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--gray-50); border-radius:8px;">
+                  <div>
+                    <div style="font-weight:600; font-size:15px;">Student Feedback Submitted</div>
+                    <div style="font-size:12px; color:var(--gray-500);">Ratings received after resolution</div>
+                  </div>
+                  <div style="font-size:24px; font-weight:700; color:var(--primary-700);" id="comm-feedback">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['admin']);
+    if (user) {
+      initSidebar('admin', 'admin-analytics');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('btn-back-dashboard').innerHTML = `${icon('arrow-left', 14)} <span>Dashboard</span>`;
+
+      document.getElementById('icon-an-total').innerHTML = icon('bar-chart', 22);
+      document.getElementById('icon-an-rate').innerHTML = icon('check-circle', 22);
+      document.getElementById('icon-an-star').innerHTML = icon('star', 22);
+      document.getElementById('icon-an-urgent').innerHTML = icon('alert-triangle', 22);
+
+      loadAnalytics();
+      setupDataSync(loadAnalytics, 4000);
+    }
+
+    let catChart = null;
+    let statChart = null;
+    let prioChart = null;
+
+    async function loadAnalytics() {
+      try {
+        const data = await apiGet('/analytics');
+        if (!data) return;
+
+        const s = data.summary;
+        document.getElementById('stat-total').textContent = s.totalComplaints;
+        const rate = s.totalComplaints ? Math.round((s.resolvedComplaints / s.totalComplaints) * 100) : 0;
+        document.getElementById('stat-res-rate').textContent = `${rate}%`;
+        document.getElementById('stat-rating').textContent = s.avgRating ? `${s.avgRating} / 5` : '—';
+        document.getElementById('stat-urgent').textContent = s.urgentComplaints;
+
+        document.getElementById('comm-students').textContent = s.totalStudents;
+        document.getElementById('comm-staff').textContent = s.totalStaff;
+        document.getElementById('comm-feedback').textContent = s.feedbackCount;
+
+        renderCategoryChart(data.byCategory || []);
+        renderStatusChart(data.byStatus || []);
+        renderPriorityChart(data.byPriority || []);
+      } catch (err) {
+        showToast('error', 'Failed to load analytics', err.message);
+      }
+    }
+
+    function renderCategoryChart(categories) {
+      const ctx = document.getElementById('categoryChart').getContext('2d');
+      if (catChart) catChart.destroy();
+      catChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: categories.map(c => c.category),
+          datasets: [{
+            label: 'Tickets',
+            data: categories.map(c => c.count),
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    function renderStatusChart(statuses) {
+      const ctx = document.getElementById('statusChart').getContext('2d');
+      if (statChart) statChart.destroy();
+      const statusColors = {
+        'Submitted': '#94a3b8',
+        'Pending': '#f59e0b',
+        'Assigned': '#3b82f6',
+        'In Progress': '#eab308',
+        'Resolved': '#22c55e',
+        'Closed': '#64748b'
+      };
+      statChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: statuses.map(s => s.status),
+          datasets: [{
+            data: statuses.map(s => s.count),
+            backgroundColor: statuses.map(s => statusColors[s.status] || '#cbd5e1')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function renderPriorityChart(priorities) {
+      const ctx = document.getElementById('priorityChart').getContext('2d');
+      if (prioChart) prioChart.destroy();
+      const prioColors = {
+        'Low': '#22c55e',
+        'Medium': '#f59e0b',
+        'High': '#f97316',
+        'Urgent': '#ef4444'
+      };
+      prioChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: priorities.map(p => p.priority),
+          datasets: [{
+            data: priorities.map(p => p.count),
+            backgroundColor: priorities.map(p => prioColors[p.priority] || '#cbd5e1')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

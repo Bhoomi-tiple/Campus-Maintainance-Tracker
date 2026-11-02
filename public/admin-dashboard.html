@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body data-page="admin-dashboard">
+
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">Admin Dashboard</div>
+            <div class="page-subtitle" id="header-date"></div>
+          </div>
+        </div>
+        <div class="header-right">
+          <a href="/admin-complaints.html" class="btn btn-primary btn-sm" id="btn-all-complaints">
+            All Complaints
+          </a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/admin-profile.html">
+            <div class="header-avatar" id="header-avatar">A</div>
+          </a>
+        </div>
+      </header>
+
+      <main class="page-content">
+
+        <!-- Banner -->
+        <div class="welcome-banner" style="background: linear-gradient(135deg, #1e3a8a, #2563eb);">
+          <div class="welcome-text">
+            <h2 id="welcome-msg">Welcome, Administrator</h2>
+            <p>Campus-wide maintenance operations, dispatching, and system monitoring (live synced).</p>
+          </div>
+          <div class="welcome-action" style="display:flex; gap:10px;">
+            <a href="/admin-analytics.html" class="btn btn-white" id="banner-analytics-btn">
+              View Analytics
+            </a>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue" id="icon-total"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-total">—</div>
+              <div class="stat-label">Total Complaints</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow" id="icon-pending"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">—</div>
+              <div class="stat-label">Pending / Unassigned</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon cyan" id="icon-inprogress"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-inprogress">—</div>
+              <div class="stat-label">In Progress</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green" id="icon-resolved"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-resolved">—</div>
+              <div class="stat-label">Resolved</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red" id="icon-urgent"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-urgent">—</div>
+              <div class="stat-label">Urgent Issues</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue" id="icon-rating"></div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-rating">—</div>
+              <div class="stat-label">Avg Satisfaction</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Complaints by Category</div>
+            </div>
+            <div class="card-body" style="height:260px; position:relative;">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Complaints by Status</div>
+            </div>
+            <div class="card-body" style="height:260px; position:relative;">
+              <canvas id="statusChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Complaints Table -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent Complaints</div>
+              <div class="card-subtitle">Real-time incoming campus tickets</div>
+            </div>
+            <a href="/admin-complaints.html" class="btn btn-outline btn-sm">View &amp; Manage All &rarr;</a>
+          </div>
+          <div id="recent-table-body">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['admin']);
+    if (user) {
+      initSidebar('admin', 'admin-dashboard');
+
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('btn-all-complaints').innerHTML = `${icon('clipboard-list', 14)} <span>All Complaints</span>`;
+      document.getElementById('banner-analytics-btn').innerHTML = `${icon('trending-up', 14)} <span>View Analytics</span>`;
+
+      document.getElementById('icon-total').innerHTML = icon('clipboard-list', 22);
+      document.getElementById('icon-pending').innerHTML = icon('clock', 22);
+      document.getElementById('icon-inprogress').innerHTML = icon('wrench', 22);
+      document.getElementById('icon-resolved').innerHTML = icon('check-circle', 22);
+      document.getElementById('icon-urgent').innerHTML = icon('alert-triangle', 22);
+      document.getElementById('icon-rating').innerHTML = icon('star', 22);
+
+      document.getElementById('welcome-msg').textContent = `Welcome, ${user.name.split(' ')[0]}!`;
+      document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      });
+
+      loadDashboard();
+      setupDataSync(loadDashboard, 4000);
+    }
+
+    let categoryChartInst = null;
+    let statusChartInst = null;
+
+    async function loadDashboard() {
+      try {
+        const data = await apiGet('/analytics');
+        if (!data) return;
+
+        const s = data.summary;
+        document.getElementById('stat-total').textContent = s.totalComplaints;
+        document.getElementById('stat-pending').textContent = s.pendingComplaints;
+        document.getElementById('stat-inprogress').textContent = s.inProgressComplaints;
+        document.getElementById('stat-resolved').textContent = s.resolvedComplaints;
+        document.getElementById('stat-urgent').textContent = s.urgentComplaints;
+        document.getElementById('stat-rating').textContent = s.avgRating ? `${s.avgRating} / 5` : 'N/A';
+
+        renderRecentTable(data.recentComplaints || []);
+        renderCharts(data.byCategory || [], data.byStatus || []);
+      } catch (err) {
+        document.getElementById('recent-table-body').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>Failed to load analytics</h3></div>`;
+      }
+    }
+
+    function renderRecentTable(list) {
+      const body = document.getElementById('recent-table-body');
+      if (!list.length) {
+        body.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('clipboard', 40)}</div><h3>No complaints found</h3></div>`;
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Title / Student</th>
+                <th>Location</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Assigned Staff</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tbody"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById('recent-tbody');
+      list.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ticket-id">${c.ticketId || c._id.slice(-6).toUpperCase()}</span></td>
+          <td>
+            <div style="font-weight:600;color:var(--gray-800)">${c.title || c.category}</div>
+            <div style="font-size:12px;color:var(--gray-500);">${icon('user', 12)} ${c.studentName || c.student?.name || 'Student'}</div>
+          </td>
+          <td>${c.building ? c.building + ', ' : ''}Rm ${c.roomNumber}</td>
+          <td>${priorityBadge(c.priority || 'Medium')}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td>${c.assignedStaff ? c.assignedStaff.name : '<span style="color:var(--gray-400)">Unassigned</span>'}</td>
+          <td>${formatDate(c.createdAt)}</td>
+          <td>
+            <a href="/admin-complaints.html?search=${c.ticketId || ''}" class="btn btn-outline btn-sm">Manage</a>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderCharts(categories, statuses) {
+      const catCtx = document.getElementById('categoryChart').getContext('2d');
+      if (categoryChartInst) categoryChartInst.destroy();
+      categoryChartInst = new Chart(catCtx, {
+        type: 'bar',
+        data: {
+          labels: categories.map(c => c.category),
+          datasets: [{
+            label: 'Complaints',
+            data: categories.map(c => c.count),
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+
+      const statCtx = document.getElementById('statusChart').getContext('2d');
+      if (statusChartInst) statusChartInst.destroy();
+      const statusColors = {
+        'Submitted': '#94a3b8',
+        'Pending': '#f59e0b',
+        'Assigned': '#3b82f6',
+        'In Progress': '#eab308',
+        'Resolved': '#22c55e',
+        'Closed': '#64748b'
+      };
+      statusChartInst = new Chart(statCtx, {
+        type: 'doughnut',
+        data: {
+          labels: statuses.map(s => s.status),
+          datasets: [{
+            data: statuses.map(s => s.count),
+            backgroundColor: statuses.map(s => statusColors[s.status] || '#cbd5e1')
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

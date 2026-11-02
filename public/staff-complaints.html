@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Assignments — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="staff-complaints">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div>
+            <div class="page-title">My Assignments</div>
+            <div class="page-subtitle">Complaints assigned to you</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/staff-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+      <main class="page-content">
+        <div class="card">
+          <div class="filters-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon" id="search-icon"></span>
+              <input id="search" type="text" class="search-input" placeholder="Search ticket or title…">
+            </div>
+            <select id="filter-status" class="filter-select">
+              <option value="">All Statuses</option>
+              <option>Assigned</option>
+              <option>In Progress</option>
+              <option>Resolved</option>
+              <option>Closed</option>
+            </select>
+            <select id="filter-priority" class="filter-select">
+              <option value="">All Priorities</option>
+              <option>Low</option><option>Medium</option><option>High</option><option>Urgent</option>
+            </select>
+          </div>
+          <div id="table-body"><div class="loading-overlay"><div class="spinner"></div></div></div>
+          <div class="pagination-wrap">
+            <span id="page-info" class="text-muted"></span>
+            <div class="pagination" id="pagination"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['staff']);
+    if (user) {
+      initSidebar('staff', 'staff-complaints');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('search-icon').innerHTML = icon('search', 16);
+
+      loadComplaints();
+      setupDataSync(loadComplaints, 4000);
+    }
+
+    let all = [], currentPage = 1;
+    const PAGE_SIZE = 12;
+
+    async function loadComplaints() {
+      try {
+        all = await apiGet('/complaints/assigned') || [];
+        applyFilters();
+      } catch(err) {
+        document.getElementById('table-body').innerHTML =
+          `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>${err.message}</h3></div>`;
+      }
+    }
+
+    function applyFilters() {
+      const search   = document.getElementById('search').value.toLowerCase().trim();
+      const status   = document.getElementById('filter-status').value;
+      const priority = document.getElementById('filter-priority').value;
+      let filtered = all.filter(c => {
+        if (search && !((c.ticketId||'').toLowerCase().includes(search)||(c.title||'').toLowerCase().includes(search))) return false;
+        if (status   && c.status   !== status)   return false;
+        if (priority && c.priority !== priority) return false;
+        return true;
+      });
+      currentPage = 1;
+      renderTable(filtered);
+    }
+
+    document.getElementById('search').addEventListener('input', applyFilters);
+    document.getElementById('filter-status').addEventListener('change', applyFilters);
+    document.getElementById('filter-priority').addEventListener('change', applyFilters);
+
+    function renderTable(filtered) {
+      const body = document.getElementById('table-body');
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const paged = filtered.slice(start, start + PAGE_SIZE);
+      document.getElementById('page-info').textContent = total ? `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total}` : '';
+
+      if (!paged.length) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">${icon('wrench', 40)}</div>
+            <h3>No assignments found</h3>
+            <p>Try adjusting filters or check back later.</p>
+          </div>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      body.innerHTML = `<div class="table-wrapper"><table class="table">
+        <thead><tr><th>Ticket</th><th>Title</th><th>Category</th><th>Location</th><th>Priority</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+        <tbody id="tbody"></tbody></table></div>`;
+      const tbody = document.getElementById('tbody');
+      paged.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="ticket-id">${c.ticketId||c._id.slice(-6).toUpperCase()}</span></td>
+          <td style="font-weight:600">${c.title||c.category}</td>
+          <td>${c.category}</td>
+          <td>${c.building?c.building+', ':''}Rm ${c.roomNumber}</td>
+          <td>${priorityBadge(c.priority||'Medium')}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td>${formatDate(c.createdAt)}</td>
+          <td><a href="/staff-complaint-detail.html?id=${c._id}" class="btn btn-outline btn-sm">Manage &rarr;</a></td>`;
+        tbody.appendChild(tr);
+      });
+
+      renderPagination('pagination', currentPage, totalPages, (p) => {
+        currentPage = p;
+        renderTable(filtered);
+      });
+    }
+  </script>
+</body>
+</html>

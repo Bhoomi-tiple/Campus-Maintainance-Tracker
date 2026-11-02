@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register Student — Campus Maintenance Management System</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .auth-card { max-width: 520px; }
+    .role-info {
+      background: var(--primary-50);
+      border: 1px solid var(--primary-200);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-size: 12.5px;
+      color: var(--primary-700);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon" id="logo-icon"></div>
+      <div class="auth-logo-text">
+        Campus Maintenance
+        <span>Management System</span>
+      </div>
+    </div>
+
+    <h1 class="auth-title">Create Student Account</h1>
+    <p class="auth-subtitle">Register to report and track maintenance complaints</p>
+
+    <div class="role-info">
+      <span id="info-icon"></span>
+      <span>This registration form is for <strong>students only</strong>. Maintenance staff and admin accounts are created by administrators.</span>
+    </div>
+
+    <div id="alert-box" class="alert alert-error" style="display:none;">
+      <span class="alert-icon" id="alert-icon"></span>
+      <span id="alert-msg"></span>
+    </div>
+
+    <form id="register-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="name">Full Name <span class="required">*</span></label>
+          <input id="name" type="text" class="form-control" placeholder="John Smith" required>
+          <span id="name-err" class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="studentId">Student ID <span class="required">*</span></label>
+          <input id="studentId" type="text" class="form-control" placeholder="e.g. 202401100027" required>
+          <span id="sid-err" class="form-error"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">College Email <span class="required">*</span></label>
+        <div class="input-group">
+          <span class="input-icon" id="mail-icon"></span>
+          <input id="email" type="email" class="form-control" placeholder="you@college.edu" required autocomplete="email">
+        </div>
+        <span id="email-err" class="form-error"></span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="phone">Phone Number</label>
+          <input id="phone" type="tel" class="form-control" placeholder="10-digit number">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="department">Department</label>
+          <select id="department" class="form-control">
+            <option value="">Select Department</option>
+            <option>Computer Science</option>
+            <option>Information Technology</option>
+            <option>Electronics &amp; Communication</option>
+            <option>Mechanical Engineering</option>
+            <option>Civil Engineering</option>
+            <option>Electrical Engineering</option>
+            <option>Chemical Engineering</option>
+            <option>Business Administration</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password <span class="required">*</span></label>
+        <div class="input-group">
+          <span class="input-icon" id="lock-icon"></span>
+          <input id="password" type="password" class="form-control" placeholder="At least 6 characters" required autocomplete="new-password">
+          <button type="button" class="input-toggle" id="toggle-pw" aria-label="Toggle password visibility"></button>
+        </div>
+        <span id="pw-err" class="form-error"></span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="confirmPassword">Confirm Password <span class="required">*</span></label>
+        <div class="input-group">
+          <span class="input-icon" id="lock-icon2"></span>
+          <input id="confirmPassword" type="password" class="form-control" placeholder="Repeat your password" required autocomplete="new-password">
+        </div>
+        <span id="cpw-err" class="form-error"></span>
+      </div>
+
+      <button id="register-btn" type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">
+        Create Account
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/login.html">Sign In</a>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    document.getElementById('logo-icon').innerHTML = icon('building', 24);
+    document.getElementById('info-icon').innerHTML = icon('info', 16);
+    document.getElementById('alert-icon').innerHTML = icon('alert-circle', 16);
+    document.getElementById('mail-icon').innerHTML = icon('mail', 16);
+    document.getElementById('lock-icon').innerHTML = icon('lock', 16);
+    document.getElementById('lock-icon2').innerHTML = icon('lock', 16);
+
+    const toggleBtn = document.getElementById('toggle-pw');
+    toggleBtn.innerHTML = icon('eye', 16);
+    toggleBtn.addEventListener('click', function () {
+      const pw = document.getElementById('password');
+      const isPassword = pw.type === 'password';
+      pw.type = isPassword ? 'text' : 'password';
+      this.innerHTML = isPassword ? icon('eye-off', 16) : icon('eye', 16);
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const name            = document.getElementById('name').value.trim();
+      const studentId       = document.getElementById('studentId').value.trim();
+      const email           = document.getElementById('email').value.trim();
+      const phone           = document.getElementById('phone').value.trim();
+      const department      = document.getElementById('department').value;
+      const password        = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      let valid = true;
+      if (!name)        { showFieldError('name-err', 'Full name is required.');       valid = false; }
+      if (!studentId)   { showFieldError('sid-err',  'Student ID is required.');      valid = false; }
+      if (!email)       { showFieldError('email-err','Email is required.');           valid = false; }
+      if (!password || password.length < 6) {
+        showFieldError('pw-err', 'Password must be at least 6 characters.'); valid = false;
+      }
+      if (password !== confirmPassword) {
+        showFieldError('cpw-err', 'Passwords do not match.'); valid = false;
+      }
+      if (!valid) return;
+
+      const btn = document.getElementById('register-btn');
+      btn.classList.add('btn-loading');
+      btn.disabled = true;
+
+      try {
+        const data = await apiPost('/auth/register', {
+          name, studentId, email, phone, department, password, role: 'student'
+        });
+        saveSession(data.token, data.user);
+        showToast('success', 'Account created!', 'Welcome to Campus Maintenance System');
+        setTimeout(() => window.location.href = '/student-dashboard.html', 700);
+      } catch (err) {
+        showAlert(err.message || 'Registration failed. Please try again.');
+      } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+      }
+    });
+
+    function showAlert(msg) {
+      const box = document.getElementById('alert-box');
+      document.getElementById('alert-msg').textContent = msg;
+      box.style.display = 'flex';
+    }
+
+    function showFieldError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.add('visible'); }
+    }
+
+    function clearErrors() {
+      document.getElementById('alert-box').style.display = 'none';
+      document.querySelectorAll('.form-error').forEach(el => {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Profile — Campus Maintenance</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body data-page="staff-profile">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div><div class="page-title">My Profile</div></div>
+        </div>
+        <div class="header-right">
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <div class="header-avatar" id="header-avatar">U</div>
+        </div>
+      </header>
+      <main class="page-content">
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;max-width:860px;">
+          <div class="card" style="text-align:center;padding:32px 20px;height:fit-content;">
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#047857,#065f46);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:white;margin:0 auto 16px;" id="profile-avatar">U</div>
+            <div style="font-size:18px;font-weight:700;color:var(--gray-900);" id="prof-name">—</div>
+            <div style="font-size:13px;color:var(--gray-500);margin-top:4px;">Maintenance Staff</div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Edit Profile</div></div>
+              <div class="card-body">
+                <div id="prof-alert" class="alert" style="display:none;"></div>
+                <form id="profile-form">
+                  <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input id="edit-name" type="text" class="form-control" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input id="edit-phone" type="tel" class="form-control">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Email (read-only)</label>
+                    <input id="edit-email" type="email" class="form-control" readonly style="background:var(--gray-50);">
+                  </div>
+                  <button type="submit" id="save-btn" class="btn btn-primary">Save Changes</button>
+                </form>
+              </div>
+            </div>
+            <div class="card mt-16">
+              <div class="card-header"><div class="card-title">Change Password</div></div>
+              <div class="card-body">
+                <div id="pw-alert" class="alert" style="display:none;"></div>
+                <form id="pw-form">
+                  <div class="form-group"><label class="form-label">Current Password</label><input id="cur-pw" type="password" class="form-control" required></div>
+                  <div class="form-group"><label class="form-label">New Password</label><input id="new-pw" type="password" class="form-control" placeholder="At least 6 characters" required></div>
+                  <div class="form-group"><label class="form-label">Confirm New Password</label><input id="conf-pw" type="password" class="form-control" placeholder="Repeat new password" required></div>
+                  <button type="submit" id="pw-btn" class="btn btn-outline">Update Password</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['staff']);
+    if (user) {
+      initSidebar('staff','staff-profile');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+
+      loadProfile();
+    }
+
+    async function loadProfile() {
+      try {
+        const me = await apiGet('/users/me');
+        const initials = me.name?.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)||'U';
+        document.getElementById('profile-avatar').textContent = initials;
+        document.getElementById('prof-name').textContent  = me.name||'—';
+        document.getElementById('edit-name').value  = me.name||'';
+        document.getElementById('edit-phone').value = me.phone||'';
+        document.getElementById('edit-email').value = me.email||'';
+      } catch(err){ console.error(err); }
+    }
+
+    document.getElementById('profile-form').addEventListener('submit', async e=>{
+      e.preventDefault();
+      const btn=document.getElementById('save-btn');
+      btn.classList.add('btn-loading'); btn.disabled=true;
+      try{
+        await apiPut('/users/me',{name:document.getElementById('edit-name').value.trim(),phone:document.getElementById('edit-phone').value.trim()});
+        showAlert('prof-alert','success','Profile updated successfully.');
+        showToast('success','Saved');
+        loadProfile();
+      }catch(err){ showAlert('prof-alert','error', err.message); }
+      finally{ btn.classList.remove('btn-loading'); btn.disabled=false; }
+    });
+
+    document.getElementById('pw-form').addEventListener('submit', async e=>{
+      e.preventDefault();
+      const cur=document.getElementById('cur-pw').value, npw=document.getElementById('new-pw').value, conf=document.getElementById('conf-pw').value;
+      if (npw !== conf) return showAlert('pw-alert','error','Passwords do not match.');
+      if (npw.length < 6) return showAlert('pw-alert','error','Password must be at least 6 characters.');
+      const btn=document.getElementById('pw-btn');
+      btn.classList.add('btn-loading'); btn.disabled=true;
+      try {
+        await apiPut('/users/me/password', { currentPassword: cur, newPassword: npw });
+        showAlert('pw-alert','success','Password changed successfully.');
+        document.getElementById('pw-form').reset();
+      } catch(err) {
+        showAlert('pw-alert','error', err.message);
+      } finally { btn.classList.remove('btn-loading'); btn.disabled=false; }
+    });
+
+    function showAlert(id, type, msg) {
+      const el = document.getElementById(id);
+      el.className = `alert alert-${type}`;
+      el.innerHTML = msg;
+      el.style.display = 'flex';
+    }
+  </script>
+</body>
+</html>

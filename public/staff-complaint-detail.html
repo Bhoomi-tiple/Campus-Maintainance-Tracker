@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Complaint — Staff</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .detail-grid { display:grid;grid-template-columns:2fr 1fr;gap:20px; }
+    @media(max-width:900px){ .detail-grid{ grid-template-columns:1fr; } }
+    .info-row { display:flex;gap:8px;padding:10px 0;border-bottom:1px solid var(--gray-100); }
+    .info-row:last-child{ border-bottom:none; }
+    .info-label { font-size:12px;font-weight:600;color:var(--gray-500);width:130px;flex-shrink:0; }
+    .info-value { font-size:13.5px;color:var(--gray-800); }
+  </style>
+</head>
+<body data-page="staff-complaints">
+  <div class="app-layout">
+    <div id="sidebar-placeholder"></div>
+    <div class="main-content">
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu"></button>
+          <div><div class="page-title">Complaint Detail</div><div class="page-subtitle" id="header-ticket">Loading…</div></div>
+        </div>
+        <div class="header-right">
+          <a href="/staff-complaints.html" class="btn btn-ghost btn-sm" id="btn-back">Back</a>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" id="header-logout-btn">
+            Sign Out
+          </button>
+          <a href="/staff-profile.html"><div class="header-avatar" id="header-avatar">U</div></a>
+        </div>
+      </header>
+      <main class="page-content" id="page-body">
+        <div class="loading-overlay"><div class="spinner"></div></div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/icons.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const user = requireAuth(['staff', 'admin']);
+    let complaintId = null;
+
+    if (user) {
+      initSidebar('staff','staff-complaints');
+      document.getElementById('menu-toggle').innerHTML = icon('menu', 18);
+      document.getElementById('header-logout-btn').innerHTML = `${icon('log-out', 15)} <span>Sign Out</span>`;
+      document.getElementById('btn-back').innerHTML = `${icon('arrow-left', 14)} <span>Back</span>`;
+
+      complaintId = new URLSearchParams(window.location.search).get('id');
+      if (!complaintId) {
+        window.location.href = '/staff-complaints.html';
+      } else {
+        loadComplaint(complaintId);
+        setupDataSync(() => loadComplaint(complaintId, true), 4000);
+      }
+    }
+
+    async function loadComplaint(id, silent = false) {
+      const body = document.getElementById('page-body');
+      try {
+        const c = await apiGet(`/complaints/${id}`);
+        document.getElementById('header-ticket').textContent = c.ticketId || id;
+
+        const statusSteps = ['Submitted','Assigned','In Progress','Resolved','Closed'];
+        const currIdx = statusSteps.indexOf(c.status==='Pending'?'Submitted':c.status);
+
+        const activeNote = document.getElementById('status-note')?.value || '';
+        const activeComment = document.getElementById('comment-text')?.value || '';
+
+        body.innerHTML = `
+          <div class="detail-grid">
+            <div style="display:flex;flex-direction:column;gap:20px;">
+
+              <div class="card">
+                <div class="card-header"><div class="card-title">Progress</div>${statusBadge(c.status)}</div>
+                <div class="card-body">
+                  <div class="progress-steps">
+                    ${statusSteps.map((s,i)=>`
+                      <div class="progress-step ${i<currIdx?'done':i===currIdx?'active':''}">
+                        <div class="step-dot">${i<currIdx?icon('check', 14):i+1}</div>
+                        <div class="step-label">${s}</div>
+                      </div>`).join('')}
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">${c.title||c.category}</div>
+                  ${priorityBadge(c.priority||'Medium')}
+                </div>
+                <div class="card-body">
+                  <p style="color:var(--gray-700);line-height:1.7;margin-bottom:20px;">${c.description}</p>
+                  <div class="info-row"><span class="info-label">Student</span><span class="info-value">${c.studentName||c.student?.name||'—'}</span></div>
+                  <div class="info-row"><span class="info-label">Category</span><span class="info-value">${c.category}</span></div>
+                  <div class="info-row"><span class="info-label">Location</span><span class="info-value">${c.building?c.building+', ':''}${c.floor?'Floor '+c.floor+', ':''}Room ${c.roomNumber}</span></div>
+                  <div class="info-row"><span class="info-label">Submitted</span><span class="info-value">${formatDateTime(c.createdAt)}</span></div>
+                </div>
+              </div>
+
+              <!-- Update Status -->
+              ${!['Resolved','Closed'].includes(c.status) ? `
+              <div class="card">
+                <div class="card-header"><div class="card-title">Update Status</div></div>
+                <div class="card-body">
+                  <div id="update-alert" class="alert" style="display:none;"></div>
+                  <div class="form-group">
+                    <label class="form-label">New Status</label>
+                    <select id="new-status" class="form-control">
+                      <option ${c.status==='Assigned'?'selected':''} value="In Progress">In Progress</option>
+                      <option value="Resolved">Resolved</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Progress Note</label>
+                    <textarea id="status-note" class="form-control" rows="3" placeholder="Describe work carried out…">${activeNote}</textarea>
+                  </div>
+                  <button class="btn btn-primary" id="update-status-btn" onclick="updateStatus('${c._id}')">
+                    Update Status
+                  </button>
+                </div>
+              </div>` : `
+              <div class="alert alert-success"><span class="alert-icon">${icon('check-circle', 16)}</span>This complaint has been ${c.status.toLowerCase()}.</div>`}
+
+              <!-- Comments -->
+              <div class="card">
+                <div class="card-header"><div class="card-title">Discussion &amp; Work Updates</div></div>
+                <div id="comments-list"><div class="loading-overlay"><div class="spinner"></div></div></div>
+                <div class="card-body" style="border-top:1px solid var(--gray-100);">
+                  <div class="form-group" style="margin-bottom:10px;">
+                    <textarea id="comment-text" class="form-control" rows="3" placeholder="Add a work update or reply to student…">${activeComment}</textarea>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="submitComment('${c._id}')">
+                    ${icon('message-square', 14)} <span>Post Update</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right -->
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <div class="card">
+                <div class="card-header"><div class="card-title">Ticket Info</div></div>
+                <div class="card-body">
+                  <div style="text-align:center;padding:12px 0;">
+                    <div style="font-size:11px;color:var(--gray-400);text-transform:uppercase;margin-bottom:6px;">Ticket ID</div>
+                    <div style="font-family:monospace;font-size:18px;font-weight:700;color:var(--primary-700);background:var(--primary-50);padding:8px 16px;border-radius:8px;">${c.ticketId||c._id.slice(-6).toUpperCase()}</div>
+                  </div>
+                  <hr class="divider">
+                  <div class="info-row"><span class="info-label">Status</span>${statusBadge(c.status)}</div>
+                  <div class="info-row"><span class="info-label">Priority</span>${priorityBadge(c.priority||'Medium')}</div>
+                  ${c.slaDeadline?`<div class="info-row"><span class="info-label">SLA Due</span><span class="info-value ${new Date()>new Date(c.slaDeadline)?'text-danger':''}">${formatDate(c.slaDeadline)}</span></div>`:''}
+                </div>
+              </div>
+
+              ${(c.statusHistory&&c.statusHistory.length)?`
+              <div class="card">
+                <div class="card-header"><div class="card-title">History</div></div>
+                <div class="card-body">
+                  <div class="timeline">
+                    ${c.statusHistory.map(h=>`
+                      <div class="timeline-item">
+                        <div class="timeline-line"></div>
+                        <div class="timeline-dot done">${icon('check', 12)}</div>
+                        <div class="timeline-content">
+                          <div class="timeline-title">${h.status}</div>
+                          <div class="timeline-meta">${formatDateTime(h.timestamp)}</div>
+                          ${h.note?`<div class="timeline-note">${h.note}</div>` : ''}
+                        </div>
+                      </div>`).join('')}
+                  </div>
+                </div>
+              </div>`:''}
+            </div>
+          </div>`;
+
+        loadComments(id);
+      } catch(err) {
+        if (!silent) {
+          body.innerHTML = `<div class="empty-state"><div class="empty-icon">${icon('alert-circle', 36)}</div><h3>${err.message}</h3></div>`;
+        }
+      }
+    }
+
+    async function updateStatus(id) {
+      const status = document.getElementById('new-status').value;
+      const note   = document.getElementById('status-note').value.trim();
+      const btn = document.getElementById('update-status-btn');
+      if (btn) { btn.classList.add('btn-loading'); btn.disabled = true; }
+
+      try {
+        await apiPatch(`/complaints/${id}/status`, { status, note });
+        showToast('success','Status updated successfully');
+        loadComplaint(id);
+      } catch(err){
+        const al=document.getElementById('update-alert');
+        al.className='alert alert-error'; al.textContent=err.message; al.style.display='flex';
+      } finally {
+        if (btn) { btn.classList.remove('btn-loading'); btn.disabled = false; }
+      }
+    }
+
+    async function loadComments(complaintId) {
+      const listEl = document.getElementById('comments-list');
+      if (!listEl) return;
+      try {
+        const comments = await apiGet(`/comments/${complaintId}`) || [];
+        if (!comments.length) {
+          listEl.innerHTML = `<div style="padding:20px 22px;color:var(--gray-400);font-size:13px;">No updates yet.</div>`;
+          return;
+        }
+        listEl.innerHTML = `<div style="padding:0 22px;">${comments.map(c=>`
+          <div class="comment">
+            <div class="comment-avatar ${c.authorRole}">${c.authorName?.[0]?.toUpperCase()||'U'}</div>
+            <div class="comment-body">
+              <div class="comment-header">
+                <span class="comment-author">${c.authorName}</span>
+                <span class="comment-role role-${c.authorRole}">${c.authorRole}</span>
+                <span class="comment-time">${timeAgo(c.createdAt)}</span>
+              </div>
+              <div class="comment-text">${c.text}</div>
+            </div>
+          </div>`).join('')}</div>`;
+      } catch{ /* ignore */ }
+    }
+
+    async function submitComment(complaintId) {
+      const text = document.getElementById('comment-text').value.trim();
+      if (!text) return showToast('warning','Empty comment', 'Please enter a message');
+      try {
+        await apiPost(`/comments/${complaintId}`,{text});
+        document.getElementById('comment-text').value='';
+        showToast('success','Comment posted');
+        loadComments(complaintId);
+      } catch(err){ showToast('error','Failed',err.message); }
+    }
+  </script>
+</body>
+</html>
