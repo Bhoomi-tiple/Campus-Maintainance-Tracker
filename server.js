@@ -41,12 +41,15 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
-// Static assets
+// Serve React build
+app.use(express.static(path.join(__dirname, "frontend", "dist")));
+
+// Serve existing dashboards and other public files
 app.use(express.static(path.join(__dirname, "public")));
 
-// Root route serves the login page as homepage
+// React login page as homepage
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
+  res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
 // Legacy complaint form preserved at /legacy
