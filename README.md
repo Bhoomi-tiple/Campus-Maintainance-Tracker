@@ -176,8 +176,7 @@ Add the required environment variables (`MONGODB_URI` and `JWT_SECRET`) in your 
 
 **Bhoomi Tiple**
 
-B.Tech – Computer Engineering (Software)
-
+Software Engineering
 MIT Academy of Engineering, Pune
 
 ---
