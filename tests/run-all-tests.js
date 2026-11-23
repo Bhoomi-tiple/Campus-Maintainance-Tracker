@@ -57,7 +57,7 @@ async function runTests() {
     }
   }
 
-  // 1. Student registration
+  // 1. Student ka registration
   await step("1. Student registration", async () => {
     const res = await request("POST", "/auth/register", {
       name: "Test Student Unit",
@@ -75,7 +75,7 @@ async function runTests() {
     studentUser = res.data.user;
   });
 
-  // 2. Student login
+  // 2. Student ka login
   await step("2. Student login", async () => {
     const res = await request("POST", "/auth/login", {
       email: testEmail,
