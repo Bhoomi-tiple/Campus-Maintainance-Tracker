@@ -163,7 +163,7 @@ npm run seed
 
 The application is deployed using **Vercel**, with MongoDB Atlas as the cloud database.
 
-Add the required environment variables (`MONGODB_URI` and `JWT_SECRET`) in your Vercel project settings before deployment.
+Add the required environment variables (`MONGODB_URI` and `JWT_SECRET`) in your Vercel project settings before the deployment.
 
 ## Future Enhancements
 
@@ -176,7 +176,7 @@ Add the required environment variables (`MONGODB_URI` and `JWT_SECRET`) in your 
 
 **Bhoomi Tiple**
 
-B.Tech – Computer Engineering (Software)
+Software Engineering
 
 MIT Academy of Engineering, Pune
 
